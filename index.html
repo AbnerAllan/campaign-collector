@@ -1,0 +1,82 @@
+// ============================================================
+// CAMPAIGN DATA COLLECTOR — Google Apps Script Backend
+// Paste this entire file into Google Apps Script
+// ============================================================
+//
+// SETUP STEPS:
+// 1. Open Google Sheets → Extensions → Apps Script
+// 2. Delete all existing code and paste this entire file
+// 3. Click "Save" (floppy disk icon)
+// 4. Click "Deploy" → "New deployment"
+// 5. Set type: "Web app"
+//    Execute as: "Me"
+//    Who has access: "Anyone"  ← important for the app to work
+// 6. Click "Deploy" → copy the Web App URL
+// 7. Paste that URL into the ⚙ settings panel in the HTML app
+// ============================================================
+
+const SHEET_NAME = "Registrations"; // Change if you want a different sheet tab name
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const sheet = getOrCreateSheet();
+
+    sheet.appendRow([
+      new Date(data.timestamp),   // Timestamp
+      data.name,                  // Full Name
+      data.phone,                 // Mobile Number
+      data.county,                // County
+      data.subcounty || "",       // Sub-county
+      data.agent || "Unknown"     // Device type
+    ]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "ok" }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  // Health check — visit the URL in browser to confirm it's live
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: "ok", message: "Campaign collector is running." }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreateSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    // Add header row with formatting
+    const headers = ["Timestamp", "Full Name", "Mobile Number", "County", "Sub-county", "Device"];
+    sheet.appendRow(headers);
+
+    // Style the header row
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setBackground("#0F6E56");
+    headerRange.setFontColor("#ffffff");
+    headerRange.setFontWeight("bold");
+    headerRange.setFontSize(11);
+
+    // Set column widths
+    sheet.setColumnWidth(1, 160); // Timestamp
+    sheet.setColumnWidth(2, 180); // Name
+    sheet.setColumnWidth(3, 140); // Phone
+    sheet.setColumnWidth(4, 140); // County
+    sheet.setColumnWidth(5, 160); // Sub-county
+    sheet.setColumnWidth(6, 100); // Device
+
+    // Freeze header row
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
+}
